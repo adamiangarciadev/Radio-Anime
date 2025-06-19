@@ -77,7 +77,7 @@ function displayThemes(data) {
             themeObj.relationships.animethemeentries.data.forEach(entry => {
                 const entryObj = data.included.find(e => e.id === entry.id && e.type === 'animethemeentry');
                 const video = data.included.find(v => v.id === entryObj.relationships.videos.data[0]?.id && v.type === 'video');
-                const audioUrl = video?.attributes.audio || video?.attributes.link;
+                const audioUrl = video?.attributes.link;
 
                 if (audioUrl) {
                     const id = video.id;
@@ -175,7 +175,7 @@ async function playRandomTheme() {
             const entryObj = data.included.find(e => e.id === entryId && e.type === 'animethemeentry');
             const videoId = entryObj?.relationships?.videos?.data[0]?.id;
             const video = data.included.find(v => v.id === videoId && v.type === 'video');
-            const audioUrl = video?.attributes.audio || video?.attributes.link;
+            const audioUrl = video?.attributes.link;
             const title = themeObj.attributes.title || 'Sin título';
             if (audioUrl) {
                 playTheme(audioUrl, animeTitle, title);
