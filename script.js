@@ -18,8 +18,7 @@ let isPlaying = false;
 let favorites = JSON.parse(localStorage.getItem(API_CONFIG.FAVORITES_STORAGE_KEY) || '[]');
 
 // Inicializar
-document.addEventListener('DOMContentLoaded', () => {
-    loadFavorites();
+
     setupEventListeners();
 });
 
@@ -159,3 +158,36 @@ function hideLoading() {}
 function showError(message) {
     themeList.innerHTML = `<div class="error">Error: ${message}</div>`;
 }
+
+// Al cargar, iniciar con un tema aleatorio de la API
+async function playRandomTheme() {
+    try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/anime?page[limit]=1&page[offset]=${Math.floor(Math.random() * 1000)}&include=animethemes.animethemeentries.videos`);
+        const data = await response.json();
+        if (data && data.data && data.data.length > 0) {
+            displayThemes(data);
+            const anime = data.data[0];
+            const animeTitle = anime.attributes.name;
+            const theme = anime.relationships.animethemes?.data[0];
+            if (!theme) return;
+            const themeObj = data.included.find(t => t.id === theme.id && t.type === 'animetheme');
+            const entryId = themeObj.relationships.animethemeentries?.data[0]?.id;
+            const entryObj = data.included.find(e => e.id === entryId && e.type === 'animethemeentry');
+            const videoId = entryObj?.relationships?.videos?.data[0]?.id;
+            const video = data.included.find(v => v.id === videoId && v.type === 'video');
+            const audioUrl = video?.attributes.audio || video?.attributes.link;
+            const title = themeObj.attributes.title || 'Sin título';
+            if (audioUrl) {
+                playTheme(audioUrl, animeTitle, title);
+            }
+        }
+    } catch (err) {
+        console.error("Error al cargar tema aleatorio:", err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadFavorites();
+    setupEventListeners();
+    playRandomTheme();
+});
