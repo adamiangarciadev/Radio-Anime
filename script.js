@@ -20,7 +20,7 @@ let favorites = JSON.parse(localStorage.getItem(API_CONFIG.FAVORITES_STORAGE_KEY
 // Inicializar
 
     setupEventListeners();
-});
+
 
 // Configurar event listeners
 function setupEventListeners() {
