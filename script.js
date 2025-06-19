@@ -191,3 +191,41 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     playRandomTheme();
 });
+
+// Lista fija de animes conocidos
+const knownAnimes = ['Naruto', 'Bleach', 'One Piece', 'Attack on Titan', 'My Hero Academia', 'Fullmetal Alchemist', 'Dragon Ball', 'Demon Slayer', 'Death Note'];
+
+async function playRandomFromKnown() {
+    const randomName = knownAnimes[Math.floor(Math.random() * knownAnimes.length)];
+    try {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/anime?filter[search]=${encodeURIComponent(randomName)}&include=animethemes.animethemeentries.videos`);
+        const data = await response.json();
+        if (data && data.data && data.data.length > 0) {
+            const anime = data.data[0];
+            const animeTitle = anime.attributes.name;
+            const theme = anime.relationships.animethemes?.data?.[0];
+            if (!theme) return;
+            const themeObj = data.included.find(t => t.id === theme.id && t.type === 'animetheme');
+            const entryId = themeObj.relationships.animethemeentries?.data?.[0]?.id;
+            const entryObj = data.included.find(e => e.id === entryId && e.type === 'animethemeentry');
+            const videoId = entryObj?.relationships?.videos?.data?.[0]?.id;
+            const video = data.included.find(v => v.id === videoId && v.type === 'video');
+            const videoUrl = video?.attributes.link;
+            const title = themeObj.attributes.title || 'Sin título';
+
+            if (videoUrl) {
+                const player = document.getElementById("videoPlayer");
+                player.src = videoUrl;
+                currentTheme.textContent = `${animeTitle} - ${title}`;
+            }
+        }
+    } catch (err) {
+        console.error("Error al buscar video:", err);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadFavorites();
+    setupEventListeners();
+    playRandomFromKnown();
+});
