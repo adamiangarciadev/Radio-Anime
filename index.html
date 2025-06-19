@@ -1,21 +1,47 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Anime Radio | Openings & Endings</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Radio - AnimeThemes</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Anime Radio</h1>
-    <p id="anime-title">Cargando...</p>
-    <audio id="player" controls autoplay></audio>
-    <div class="controls">
-      <button id="prev">⏮️ Anterior</button>
-      <button id="next">⏭️ Siguiente</button>
+    <div class="container">
+        <header>
+            <h1>🎶 Anime Radio</h1>
+            <p>Reproduce openings y endings de tus animes favoritos</p>
+        </header>
+        
+        <div class="search-section">
+            <input type="text" id="searchInput" placeholder="Buscar anime (ej: Naruto, Attack on Titan)">
+            <button id="searchButton">Buscar</button>
+        </div>
+        
+        <div class="player-section">
+            <div class="now-playing">
+                <h2>Reproduciendo:</h2>
+                <p id="currentTheme">Selecciona un tema para comenzar</p>
+            </div>
+            
+            <div class="player-controls">
+                <audio id="audioPlayer" controls></audio>
+            </div>
+            
+            <div class="theme-list" id="themeList">
+                <!-- Los temas se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+        
+        <div class="favorites-section">
+            <h2>Tus Favoritos</h2>
+            <div id="favoritesList">
+                <!-- Los favoritos se cargarán aquí -->
+            </div>
+        </div>
     </div>
-  </div>
-  <script src="script.js"></script>
+    
+    <script src="config.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

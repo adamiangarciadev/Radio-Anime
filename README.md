@@ -1,24 +1,19 @@
-# Anime Radio
+# Anime Radio - Usando la API de AnimeThemes
 
-Web de radio online que reproduce openings y endings de anime utilizando la [API pública de animethemes.moe](https://api-docs.animethemes.moe/).
+Una aplicación web simple para buscar y reproducir openings y endings de anime usando la API de AnimeThemes.
 
 ## Características
-- Reproductor automático
-- Botón siguiente / anterior
-- Nombre del anime actualmente en reproducción
 
-## Cómo usar
+- Busca animes por nombre
+- Reproduce openings y endings
+- Guarda tus temas favoritos
+- Interfaz responsive y amigable
 
-1. Cloná este repositorio:
-```bash
-git clone https://github.com/tuusuario/anime-radio.git
-```
+## Requisitos
 
-2. Abrí `index.html` en tu navegador. ¡Listo!
+- Un navegador moderno (Chrome, Firefox, Safari, Edge)
+- Conexión a Internet
 
-## Créditos
-- [AnimeThemes.moe](https://animethemes.moe/) por la API
-- Diseño ligero en HTML, CSS y JavaScript puro
+## Instalación
 
----
-🔊 Recomendado para fans de anime que quieran revivir openings sin publicidad ni interrupciones.
+1. Clona este repositorio:
