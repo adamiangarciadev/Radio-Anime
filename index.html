@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Anime Radio - AnimeThemes</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
@@ -12,27 +12,27 @@
             <h1>🎶 Anime Radio</h1>
             <p>Reproduce openings y endings de tus animes favoritos</p>
         </header>
-        
+
         <div class="search-section">
             <input type="text" id="searchInput" placeholder="Buscar anime (ej: Naruto, Attack on Titan)">
             <button id="searchButton">Buscar</button>
         </div>
-        
+
         <div class="player-section">
             <div class="now-playing">
                 <h2>Reproduciendo:</h2>
                 <p id="currentTheme">Selecciona un tema para comenzar</p>
             </div>
-            
+
             <div class="player-controls">
                 <audio id="audioPlayer" controls></audio>
             </div>
-            
+
             <div class="theme-list" id="themeList">
                 <!-- Los temas se cargarán aquí dinámicamente -->
             </div>
         </div>
-        
+
         <div class="favorites-section">
             <h2>Tus Favoritos</h2>
             <div id="favoritesList">
@@ -40,7 +40,7 @@
             </div>
         </div>
     </div>
-    
+
     <script src="config.js"></script>
     <script src="script.js"></script>
 </body>
