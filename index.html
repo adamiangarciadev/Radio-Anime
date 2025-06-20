@@ -11,22 +11,26 @@
       --card: #16213e;
       --text: #e1e1e1;
     }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
       font-family: 'Segoe UI', sans-serif;
     }
+
     body {
       background: var(--background);
       color: var(--text);
       min-height: 100vh;
       padding: 2rem;
     }
+
     .container {
       max-width: 1200px;
       margin: 0 auto;
     }
+
     .player-container {
       background: var(--card);
       border-radius: 15px;
@@ -34,11 +38,13 @@
       box-shadow: 0 10px 30px rgba(0,0,0,0.3);
       margin-bottom: 2rem;
     }
+
     video {
       width: 100%;
       border-radius: 10px;
       background: #000;
     }
+
     .current-playing {
       font-size: 1.2rem;
       margin: 1.5rem 0;
@@ -47,9 +53,11 @@
       border-radius: 8px;
       text-align: center;
     }
+
     .themes-grid {
       display: none;
     }
+
     .loading {
       text-align: center;
       padding: 2rem;
@@ -64,9 +72,93 @@
       <video id="videoPlayer" controls autoplay muted></video>
       <div id="currentPlaying" class="current-playing"></div>
     </div>
+
     <div id="loading" class="loading">Cargando temas...</div>
     <div id="themesList" class="themes-grid"></div>
   </div>
-  <script src="script.js"></script>
+
+  <script>
+    let allThemes = [];
+    let currentTheme = null;
+    const videoPlayer = document.getElementById('videoPlayer');
+    const currentPlaying = document.getElementById('currentPlaying');
+    const loadingElement = document.getElementById('loading');
+
+    fetch('anime_themes_by_year_full.json')
+      .then(response => {
+        if (!response.ok) throw new Error('Error al cargar los datos');
+        return response.json();
+      })
+      .then(data => {
+        allThemes = data;
+        loadingElement.style.display = 'none';
+        playRandomTheme();
+      })
+      .catch(error => {
+        loadingElement.textContent = 'Error al cargar los temas. Por favor, actualiza la página.';
+        loadingElement.style.color = '#ff6b6b';
+      });
+
+    async function fetchAnimeInfo(slug) {
+      try {
+        const response = await fetch(`https://api.animethemes.moe/anime/${slug}`);
+        const data = await response.json();
+        return data.anime;
+      } catch (error) {
+        console.error('Error al obtener detalles del anime:', error);
+        return null;
+      }
+    }
+
+    async function playRandomTheme() {
+      if (!allThemes.length) return;
+
+      let nextTheme;
+      do {
+        nextTheme = allThemes[Math.floor(Math.random() * allThemes.length)];
+      } while (currentTheme && nextTheme.Link === currentTheme.Link);
+
+      currentTheme = nextTheme;
+      videoPlayer.src = currentTheme.Link;
+      videoPlayer.play();
+
+      renderCurrentThemeInfo();
+    }
+
+    async function renderCurrentThemeInfo() {
+      const t = currentTheme;
+      currentPlaying.innerHTML = `<strong>🎵 ${t.Anime} - ${t.Título}</strong><br>`;
+
+      const slug = t.Slug || t.slug || t.Anime.toLowerCase().replace(/\s+/g, '-');
+      const animeData = await fetchAnimeInfo(slug);
+
+      if (animeData) {
+        currentPlaying.innerHTML += `
+          <br><small>
+            🗓️ ${animeData.year || "?"} | 📺 ${animeData.media_format || "?"} | 🌸 ${animeData.season || "?"}<br>
+            🆔 ${animeData.id} | Slug: <code>${animeData.slug}</code><br>
+            📅 Creado: ${animeData.created_at?.split("T")[0]} | Actualizado: ${animeData.updated_at?.split("T")[0]}<br><br>
+            📝 <em>${animeData.synopsis || 'Sin sinopsis disponible'}</em>
+          </small>
+        `;
+      }
+    }
+
+    videoPlayer.addEventListener('ended', () => {
+      playRandomTheme();
+    });
+
+    function habilitarSonidoAlInteraccion() {
+      function activarSonido() {
+        videoPlayer.muted = false;
+        videoPlayer.volume = 1.0;
+        videoPlayer.play();
+        document.removeEventListener('click', activarSonido);
+      }
+      document.addEventListener('click', activarSonido);
+    }
+
+    habilitarSonidoAlInteraccion();
+  </script>
 </body>
 </html>
