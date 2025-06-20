@@ -5,7 +5,7 @@ const themesList = document.getElementById('themesList');
 const videoPlayer = document.getElementById('videoPlayer');
 const currentPlaying = document.getElementById('currentPlaying');
 
-fetch('anime_themes_by_year.json')
+fetch('anime_themes_by_year_full.json')
   .then(response => response.json())
   .then(data => {
     allThemes = data;
