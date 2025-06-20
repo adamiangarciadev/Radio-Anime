@@ -1,32 +1,24 @@
 
 let allThemes = [];
-const yearSelect = document.getElementById('yearSelect');
 const themesList = document.getElementById('themesList');
 const videoPlayer = document.getElementById('videoPlayer');
 const currentPlaying = document.getElementById('currentPlaying');
 
-fetch('anime_themes_by_year_full.json')
+fetch('anime_themes_by_year.json')
   .then(response => response.json())
   .then(data => {
     allThemes = data;
-    populateYearOptions();
-    showThemesByYear(new Date().getFullYear());
+    playRandomTheme();
   });
 
-function populateYearOptions() {
-  const years = [...new Set(allThemes.map(item => item['Año']))].sort((a, b) => a - b);
-  yearSelect.innerHTML = years.map(year => 
-    `<option value="${year}">${year}</option>`
-  ).join('');
-  yearSelect.value = new Date().getFullYear();
-  yearSelect.addEventListener('change', () => {
-    showThemesByYear(parseInt(yearSelect.value));
-  });
-}
+function playRandomTheme() {
+  if (allThemes.length === 0) return;
 
-function showThemesByYear(year) {
-  const filtered = allThemes.filter(item => item['Año'] === year);
-  themesList.innerHTML = filtered.map(item => `
+  const theme = allThemes[Math.floor(Math.random() * allThemes.length)];
+  videoPlayer.src = theme.Link;
+  currentPlaying.textContent = "🎵 Reproduciendo: " + theme.Anime + " - " + theme.Título;
+
+  themesList.innerHTML = allThemes.map(item => `
     <div class="theme-card">
       <h3>${item.Anime}</h3>
       <p>${item.Título} (${item.Tipo})</p>

@@ -4,26 +4,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Anime Themes por Año</title>
+  <title>Anime Themes - Modo Radio</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>📺 Anime Themes por Año</h1>
-      <p>Selecciona un año para explorar openings y endings</p>
+      <h1>📻 Anime Radio</h1>
+      <p>Reproduce aleatoriamente openings y endings de anime</p>
     </header>
-
-    <div class="controls">
-      <label for="yearSelect">Año:</label>
-      <select id="yearSelect"></select>
-    </div>
 
     <div id="themesList"></div>
 
     <div class="player">
       <video id="videoPlayer" width="100%" controls autoplay muted></video>
-      <p id="currentPlaying">Ningún tema seleccionado</p>
+      <p id="currentPlaying">Cargando tema aleatorio...</p>
     </div>
   </div>
 
