@@ -1,27 +1,218 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Anime Themes - Modo Radio</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Themes Player</title>
+    <style>
+        :root {
+            --primary: #7b68ee;
+            --background: #1a1a2e;
+            --card: #16213e;
+            --text: #e1e1e1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .player-container {
+            background: var(--card);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 2rem;
+        }
+
+        video {
+            width: 100%;
+            border-radius: 10px;
+            background: #000;
+        }
+
+        .current-playing {
+            font-size: 1.2rem;
+            margin: 1.5rem 0;
+            padding: 1rem;
+            background: rgba(123, 104, 238, 0.2);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .themes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .theme-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .theme-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(123, 104, 238, 0.3);
+        }
+
+        .theme-card.playing {
+            border: 2px solid var(--primary);
+            background: rgba(123, 104, 238, 0.15);
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .theme-info {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 1rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            flex: 1;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.2rem;
+            color: #999;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            
+            .themes-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>📻 Anime Radio</h1>
-      <p>Reproduce aleatoriamente openings y endings de anime</p>
-    </header>
-
-    <div id="themesList"></div>
-
-    <div class="player">
-      <video id="videoPlayer" width="100%" controls autoplay muted></video>
-      <p id="currentPlaying">Cargando tema aleatorio...</p>
+    <div class="container">
+        <div class="player-container">
+            <video id="videoPlayer" controls></video>
+            <div id="currentPlaying" class="current-playing"></div>
+        </div>
+        
+        <div id="loading" class="loading">Cargando temas...</div>
+        <div id="themesList" class="themes-grid"></div>
     </div>
-  </div>
 
-  <script src="script.js"></script>
+    <script>
+        let allThemes = [];
+        let currentTheme = null;
+        const themesList = document.getElementById('themesList');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const currentPlaying = document.getElementById('currentPlaying');
+        const loadingElement = document.getElementById('loading');
+
+        fetch('anime_themes_by_year_full.json')
+            .then(response => {
+                if (!response.ok) throw new Error('Error al cargar los datos');
+                return response.json();
+            })
+            .then(data => {
+                allThemes = data;
+                loadingElement.style.display = 'none';
+                playRandomTheme();
+            })
+            .catch(error => {
+                loadingElement.textContent = 'Error al cargar los temas. Por favor, actualiza la página.';
+                loadingElement.style.color = '#ff6b6b';
+            });
+
+        function playRandomTheme() {
+            if (!allThemes.length) return;
+            
+            const theme = allThemes[Math.floor(Math.random() * allThemes.length)];
+            updateCurrentTheme(theme);
+            renderThemesList();
+        }
+
+        function playVideo(url, title) {
+            const [anime, themeTitle] = title.split(' - ');
+            const theme = allThemes.find(item => 
+                item.Anime === anime && 
+                item.Título === themeTitle && 
+                item.Link === url
+            );
+            
+            if (theme) {
+                updateCurrentTheme(theme);
+                renderThemesList();
+            }
+        }
+
+        function updateCurrentTheme(theme) {
+            currentTheme = theme;
+            videoPlayer.src = theme.Link;
+            currentPlaying.textContent = `🎵 Reproduciendo: ${theme.Anime} - ${theme.Título}`;
+        }
+
+        function renderThemesList() {
+            themesList.innerHTML = allThemes.map(item => {
+                const isPlaying = currentTheme && 
+                    item.Link === currentTheme.Link && 
+                    item.Título === currentTheme.Título && 
+                    item.Anime === currentTheme.Anime;
+                
+                return `
+                    <div class="theme-card ${isPlaying ? 'playing' : ''}">
+                        <h3>${item.Anime}</h3>
+                        <p class="theme-info">${item.Título} (${item.Tipo})</p>
+                        <div class="button-group">
+                            <button onclick="playVideo('${item.Link}', '${item.Anime} - ${item.Título}')">
+                                Reproducir
+                            </button>
+                            <a href="${item.Link}" target="_blank">
+                                <button>Descargar</button>
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    </script>
 </body>
 </html>
