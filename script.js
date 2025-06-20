@@ -54,6 +54,26 @@ async function playRandomTheme() {
 
 async function renderCurrentThemeInfo() {
   const t = currentTheme;
+  const slug = t.Slug || t.slug || t.Anime.toLowerCase().replace(/\s+/g, '-');
+  currentPlaying.innerHTML = `<strong>🎵 ${t.Anime}${t.Título && t.Título !== "Sin título" ? ' - ' + t.Título : ''}</strong><br>
+      <em>🎧 Tipo: ${t.Tipo || "Desconocido"}</em>`;
+  try {
+    const response = await fetch(`https://api.animethemes.moe/anime/${slug}`);
+    const data = await response.json();
+    const animeData = data.anime;
+    const formattedName = animeData.slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    currentPlaying.innerHTML += `
+      <br><small>
+        🗓️ ${animeData.year || "?"} | 📺 ${animeData.media_format || "?"} | 🌸 ${animeData.season || "?"}<br>
+        🎬 Anime: ${formattedName}<br><br>
+        📝 <em>${animeData.synopsis || 'Sin sinopsis disponible'}</em>
+      </small>
+    `;
+  } catch (error) {
+    console.error('Error al obtener detalles del anime:', error);
+  }
+}
+  const t = currentTheme;
   currentPlaying.innerHTML = `<strong>🎵 ${t.Anime} - ${t.Título}</strong><br>`;
   const slug = t.Slug || t.slug || t.Anime.toLowerCase().replace(/\s+/g, '-');
 
