@@ -99,29 +99,34 @@
         loadingElement.style.color = '#ff6b6b';
       });
 
-    function playRandomTheme() {
-      if (!allThemes.length) return;
+    async function playRandomTheme() {
+  if (!allThemes.length) return;
 
-      let nextTheme;
-      do {
-        nextTheme = allThemes[Math.floor(Math.random() * allThemes.length)];
-      } while (currentTheme && nextTheme.Link === currentTheme.Link);
+  let nextTheme;
+  do {
+    nextTheme = allThemes[Math.floor(Math.random() * allThemes.length)];
+  } while (currentTheme && nextTheme.Link === currentTheme.Link);
 
-      currentTheme = nextTheme;
-      videoPlayer.src = currentTheme.Link;
-      videoPlayer.play();
-      currentPlaying.textContent = `🎵 Reproduciendo: ${currentTheme.Anime} - ${currentTheme.Título}`;
-    }
-    // Espera a la primera interacción del usuario para quitar el mute
-function habilitarSonidoAlInteraccion() {
-  function activarSonido() {
-    videoPlayer.muted = false;
-    videoPlayer.volume = 1.0;
-    videoPlayer.play();
-    document.removeEventListener('click', activarSonido);
+  currentTheme = nextTheme;
+  videoPlayer.src = currentTheme.Link;
+  videoPlayer.play();
+  currentPlaying.textContent = `🎵 Reproduciendo: ${currentTheme.Anime} - ${currentTheme.Título}`;
+
+  // ⬇️ Nueva parte: obtener más info del anime usando su slug
+  const slug = currentTheme.Slug || currentTheme.slug || currentTheme.Anime.toLowerCase().replace(/\s+/g, '-'); // fallback
+  const animeData = await fetchAnimeInfo(slug);
+
+  if (animeData) {
+    console.log('📖 Info del anime:', animeData);
+    currentPlaying.innerHTML += `
+      <br><small>
+        🗓️ ${animeData.year} | 📺 ${animeData.media_format} | 🌸 ${animeData.season}<br>
+        📝 ${animeData.synopsis || 'Sinopsis no disponible'}
+      </small>
+    `;
   }
-  document.addEventListener('click', activarSonido);
 }
+
 
 habilitarSonidoAlInteraccion();
 
