@@ -1,4 +1,5 @@
 let allThemes = [];
+const THEME_TYPE = "OP"; // Cambiar a "ED" para endings, o "" para todos
 let currentTheme = null;
 let nextTheme = null;
 let preloadedVideo = null;
@@ -20,6 +21,11 @@ fetch('anime_themes_by_year_full.json')
   });
 
 function getRandomTheme(excludeLink) {
+  const filteredThemes = THEME_TYPE
+    ? allThemes.filter(t => t.Tipo && t.Tipo.toUpperCase().startsWith(THEME_TYPE))
+    : allThemes;
+  if (filteredThemes.length === 0) return null;
+
   let theme;
   do {
     theme = allThemes[Math.floor(Math.random() * allThemes.length)];
