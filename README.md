@@ -1,19 +1,43 @@
-# Anime Radio - Usando la API de AnimeThemes
+# Radio Anime
 
-Una aplicación web simple para buscar y reproducir openings y endings de anime usando la API de AnimeThemes.
+Radio Anime es una aplicacion web estatica para reproducir openings y endings de anime usando la API oficial de AnimeThemes en vivo.
 
-## Características
+## Funciones
 
-- Busca animes por nombre
-- Reproduce openings y endings
-- Guarda tus temas favoritos
-- Interfaz responsive y amigable
+- Reproduccion aleatoria de temas desde AnimeThemes.
+- Busqueda remota por anime usando la API.
+- Filtro por openings, endings o favoritos.
+- Favoritos persistidos en el navegador con `localStorage`.
+- UI responsive sin dependencias externas.
+- Manejo de errores de carga y videos no reproducibles.
+- Paginado remoto para cargar mas temas sin mantener un JSON local.
 
-## Requisitos
+## Estructura
 
-- Un navegador moderno (Chrome, Firefox, Safari, Edge)
-- Conexión a Internet
+```text
+Radio-Anime/
+├── index.html
+├── style.css
+├── script.js
+└── config.js
+```
 
-## Instalación
+## Uso local
 
-1. Clona este repositorio:
+Por restricciones del navegador, conviene abrir el proyecto con un servidor local en vez de hacer doble click sobre `index.html`.
+
+```bash
+python -m http.server 8000
+```
+
+Despues abrir `http://localhost:8000`.
+
+## Configuracion
+
+Los valores principales estan en `config.js`:
+
+- `API_BASE_URL`: URL base de AnimeThemes.
+- `PAGE_SIZE`: cantidad de temas por pagina remota.
+- `SEARCH_ANIME_LIMIT`: cantidad maxima de animes detallados por busqueda.
+- `MAX_VISIBLE_CARDS`: cantidad maxima de tarjetas renderizadas.
+- `FAVORITES_STORAGE_KEY`: clave usada para favoritos en `localStorage`.
