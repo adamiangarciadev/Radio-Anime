@@ -1,0 +1,19 @@
+{
+  "name": "Radio Anime",
+  "short_name": "Radio Anime",
+  "lang": "es-AR",
+  "description": "Dale play a tu mundo. Openings, endings y tus favoritos.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#121316",
+  "theme_color": "#121316",
+  "icons": [
+    {
+      "src": "assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

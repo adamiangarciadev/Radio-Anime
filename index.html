@@ -1,81 +1,410 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Radio Anime reproduce openings y endings aleatorios de anime con busqueda, filtros y favoritos." />
-  <title>Radio Anime</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <main class="app-shell">
-    <section class="hero" aria-labelledby="pageTitle">
-      <div>
-        <p class="eyebrow">AnimeThemes radio player</p>
-        <h1 id="pageTitle">Radio Anime</h1>
-        <p class="hero-copy">
-          Reproduce openings y endings al azar, filtra por tipo, anime o ano, y guarda tus temas favoritos para volver rapido.
-        </p>
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#121316" />
+    <meta
+      name="description"
+      content="Tu rincón para escuchar anime. Descubrí openings y endings, armá tu cola y guardá esos temas que siempre querés volver a escuchar."
+    />
+    <title>Radio Anime — Dale play a tu mundo</title>
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="style.css?v=2.0.0" />
+    <script src="config.js?v=2.0.0" defer></script>
+    <script src="script.js?v=2.0.0" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Saltar al contenido</a>
+    <aside class="sidebar" aria-label="Navegación principal">
+      <a class="brand" href="#discover" aria-label="Radio Anime, inicio"
+        ><span class="brand-mark" data-icon="radio"></span
+        ><span
+          >radio<span class="brand-anime"
+            >anime<span class="brand-dot">.</span></span
+          ></span
+        ></a
+      >
+      <nav class="main-nav">
+        <button
+          class="nav-item active"
+          data-view="discover"
+          aria-current="page"
+        >
+          <span data-icon="compass"></span><span>Descubrir</span>
+        </button>
+        <button class="nav-item" data-view="favorites">
+          <span data-icon="heart"></span><span>Favoritos</span
+          ><span class="nav-count" id="favoriteCount">0</span>
+        </button>
+        <button class="nav-item" data-view="history">
+          <span data-icon="history"></span><span>Escuchados</span>
+        </button>
+      </nav>
+      <div class="sidebar-mixes">
+        <p>Tu frecuencia</p>
+        <button data-mix="OP">
+          <span class="mix-dot orange"></span>Modo shōnen</button
+        ><button data-mix="ED">
+          <span class="mix-dot lavender"></span>After hours</button
+        ><button data-mix="classic">
+          <span class="mix-dot mint"></span>Viaje al pasado
+        </button>
       </div>
-
-      <div class="stats" aria-label="Estadisticas de la coleccion">
-        <article>
-          <strong id="totalThemes">0</strong>
-          <span>cargados</span>
-        </article>
-        <article>
-          <strong id="visibleThemes">0</strong>
-          <span>visibles</span>
-        </article>
-        <article>
-          <strong id="favoriteCount">0</strong>
-          <span>favoritos</span>
-        </article>
+      <div class="sidebar-bottom">
+        <div class="station-note">
+          <span data-icon="headphones"></span>
+          <p>Un tema.<br />Mil recuerdos.</p>
+          <small>Hecho para fans del anime.</small>
+        </div>
+        <button class="subtle-button" id="aboutButton">
+          <span data-icon="info"></span>Acerca de la radio
+        </button>
+      </div>
+    </aside>
+    <main id="main" class="main-content">
+      <header class="topbar">
+        <div class="topbar-greeting">
+          Un buen día empieza con un buen opening.
+        </div>
+        <div class="search-wrap">
+          <span data-icon="search"></span
+          ><input
+            id="searchInput"
+            type="search"
+            aria-label="Buscar anime, canción o artista"
+            placeholder="Buscá tu próximo tema"
+            autocomplete="off"
+          /><kbd>/</kbd>
+        </div>
+        <button
+          id="helpButton"
+          class="icon-button shortcuts-button"
+          aria-label="Atajos de teclado"
+          title="Atajos de teclado"
+        >
+          <span data-icon="keyboard"></span>
+        </button>
+      </header>
+      <section
+        id="discoveryIntro"
+        class="discovery-intro"
+        aria-label="Descubrí Radio Anime"
+      >
+        <div class="hero">
+          <img
+            class="hero-art"
+            src="assets/rooftop.png"
+            width="1672"
+            height="941"
+            alt="Una chica con auriculares contempla Tokio al atardecer"
+            fetchpriority="high"
+          />
+          <div class="hero-shade"></div>
+          <div class="hero-content">
+            <h1>Dale play<br />a tu mundo<span>.</span></h1>
+            <p>
+              Openings que te encienden.<br />Endings que se quedan con vos.
+            </p>
+            <button class="primary-button" id="radioButton">
+              <span data-icon="play"></span>Escuchar ahora</button
+            ><span class="hero-caption">Tu anime. Tu soundtrack.</span>
+          </div>
+          <div class="hero-corner" aria-hidden="true">ラジオアニメ</div>
+        </div>
+        <section class="studio" aria-labelledby="studioTitle">
+          <div class="studio-heading">
+            <h2 id="studioTitle">En la cabina</h2>
+            <span id="playState" class="state-pill">En pausa</span>
+          </div>
+          <div id="videoHome" class="video-home">
+            <video
+              id="videoPlayer"
+              playsinline
+              preload="none"
+              aria-label="Video del tema actual"
+            ></video
+            ><button
+              id="videoPlay"
+              class="video-overlay"
+              aria-label="Reproducir video"
+            >
+              <span data-icon="play"></span>
+            </button>
+          </div>
+          <div class="studio-track">
+            <p id="studioAnime">Preparando tu selección</p>
+            <h3 id="studioSong">Una nueva conexión.</h3>
+            <div class="studio-meta">
+              <span id="studioMeta">Openings & endings</span
+              ><button
+                id="cinemaButton"
+                class="icon-button"
+                aria-label="Abrir modo cine"
+                title="Modo cine"
+              >
+                <span data-icon="expand"></span>
+              </button>
+            </div>
+          </div>
+          <div class="studio-footer">
+            <span class="signal" aria-hidden="true"
+              ><i></i><i></i><i></i><i></i></span
+            ><span id="studioMessage">Dale play cuando quieras.</span>
+          </div>
+        </section>
+      </section>
+      <section
+        id="featuredSection"
+        class="featured-section"
+        aria-labelledby="featuredTitle"
+      >
+        <div class="section-heading">
+          <div>
+            <h2 id="featuredTitle">Siempre volvés a estos</h2>
+            <p>Historias que reconocés con los primeros acordes.</p>
+          </div>
+          <span class="selection-label">La selección de la radio</span>
+        </div>
+        <div id="featuredGrid" class="featured-grid"></div>
+      </section>
+      <section class="library" id="library" aria-labelledby="libraryTitle">
+        <div class="section-heading library-heading">
+          <div>
+            <h2 id="libraryTitle">Encontrá tu próximo replay</h2>
+            <p id="libraryDescription">
+              Explorá, guardá y dejá que un tema te lleve al siguiente.
+            </p>
+          </div>
+          <button id="shuffleLibrary" class="text-button">
+            <span data-icon="shuffle"></span>Sorprendeme
+          </button>
+        </div>
+        <div class="library-toolbar">
+          <div class="filter-tabs" role="group" aria-label="Filtrar por tipo">
+            <button data-filter="all" class="selected" aria-pressed="true">
+              Todo</button
+            ><button data-filter="OP" aria-pressed="false">Openings</button
+            ><button data-filter="ED" aria-pressed="false">Endings</button>
+          </div>
+          <div class="library-options">
+            <label class="year-label"
+              ><span class="sr-only">Filtrar por año</span
+              ><select id="yearInput">
+                <option value="">Todos los años</option>
+                <option value="classic">Antes de 2010</option>
+              </select></label
+            ><label
+              ><span class="sr-only">Ordenar temas</span
+              ><select id="sortInput">
+                <option value="selection">Selección</option>
+                <option value="newest">Más recientes</option>
+                <option value="az">Anime A–Z</option>
+              </select></label
+            >
+          </div>
+        </div>
+        <div id="statusBox" class="status-box" hidden>
+          <span id="statusText" role="status"></span
+          ><button id="retryButton" class="text-button" hidden>
+            Reintentar
+          </button>
+        </div>
+        <div class="list-head" aria-hidden="true">
+          <span>#</span><span>Tema / anime</span><span>Tipo</span
+          ><span>Año</span><span></span>
+        </div>
+        <div id="themesList" class="themes-list" aria-label="Temas"></div>
+        <div class="library-bottom">
+          <span id="resultCount" role="status"></span
+          ><button id="loadMoreButton" class="secondary-button">
+            Explorar más temas<span data-icon="arrowDown"></span>
+          </button>
+        </div>
+      </section>
+      <footer class="page-footer">
+        <span
+          >Radio Anime<span class="brand-dot">.</span>
+          <span class="footer-separator">/</span> Para los que nunca saltean el
+          opening.</span
+        ><button id="footerAbout">Acerca de la radio y ayuda</button
+        ><a
+          href="https://animethemes.moe"
+          target="_blank"
+          rel="noopener noreferrer"
+          >Música y videos de AnimeThemes<span data-icon="external"></span
+        ></a>
+      </footer>
+    </main>
+    <section class="player-dock" aria-label="Controles de reproducción">
+      <div class="dock-track">
+        <button
+          id="dockArtworkButton"
+          class="dock-artwork-button"
+          aria-label="Ver video en modo cine"
+        >
+          <img
+            id="dockArtwork"
+            src="assets/rooftop.png"
+            width="54"
+            height="54"
+            alt=""
+          />
+        </button>
+        <div class="dock-titles">
+          <strong id="dockTitle">Radio Anime</strong
+          ><span id="dockSubtitle">Elegí un tema para empezar</span>
+        </div>
+        <button
+          id="favoriteButton"
+          class="icon-button"
+          aria-label="Guardar favorito"
+          aria-pressed="false"
+        >
+          <span data-icon="heart"></span>
+        </button>
+      </div>
+      <div class="dock-center">
+        <div class="transport">
+          <button
+            id="shuffleButton"
+            class="icon-button active"
+            aria-label="Reproducción aleatoria"
+            aria-pressed="true"
+            title="Aleatorio"
+          >
+            <span data-icon="shuffle"></span></button
+          ><button
+            id="previousButton"
+            class="icon-button"
+            aria-label="Tema anterior"
+            title="Anterior"
+          >
+            <span data-icon="previous"></span></button
+          ><button id="playButton" class="play-button" aria-label="Reproducir">
+            <span data-icon="play"></span></button
+          ><button
+            id="nextButton"
+            class="icon-button"
+            aria-label="Siguiente tema"
+            title="Siguiente"
+          >
+            <span data-icon="next"></span></button
+          ><button
+            id="repeatButton"
+            class="icon-button"
+            aria-label="Repetir tema"
+            aria-pressed="false"
+            title="Repetir tema"
+          >
+            <span data-icon="repeat"></span>
+          </button>
+        </div>
+        <div class="timeline">
+          <span id="elapsed">0:00</span
+          ><input
+            id="seekInput"
+            type="range"
+            min="0"
+            max="100"
+            value="0"
+            step="0.1"
+            aria-label="Posición de reproducción"
+          /><span id="duration">0:00</span>
+        </div>
+      </div>
+      <div class="dock-tools">
+        <button
+          id="sleepButton"
+          class="icon-button"
+          aria-label="Temporizador de apagado"
+          title="Temporizador"
+        >
+          <span data-icon="moon"></span></button
+        ><button
+          id="muteButton"
+          class="icon-button"
+          aria-label="Silenciar"
+          title="Silenciar"
+        >
+          <span data-icon="volume"></span></button
+        ><input
+          id="volumeInput"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.7"
+          aria-label="Volumen"
+        /><button
+          id="queueButton"
+          class="icon-button"
+          aria-label="Abrir cola de reproducción"
+          title="Cola de reproducción"
+        >
+          <span data-icon="queue"></span
+          ><span id="queueBadge" class="queue-badge" hidden>0</span>
+        </button>
       </div>
     </section>
-
-    <section class="player-card" aria-label="Reproductor">
-      <video id="videoPlayer" controls playsinline preload="metadata"></video>
-
-      <div class="now-playing" id="currentPlaying" aria-live="polite">
-        <p class="placeholder">Conectando con AnimeThemes...</p>
+    <dialog id="queueDialog" class="side-dialog">
+      <div class="dialog-heading">
+        <div>
+          <h2>Tu próxima conexión</h2>
+          <p>Los temas que agregaste a la cola.</p>
+        </div>
+        <button
+          class="icon-button"
+          data-close="queueDialog"
+          aria-label="Cerrar cola"
+        >
+          <span data-icon="close"></span>
+        </button>
       </div>
-
-      <div class="controls">
-        <button id="playRandomButton" type="button">Siguiente aleatorio</button>
-        <button id="favoriteButton" type="button" aria-pressed="false">Guardar favorito</button>
-        <button id="soundButton" type="button">Activar sonido</button>
-        <button id="loadMoreButton" type="button">Cargar mas</button>
+      <div id="queueList"></div>
+      <button id="clearQueueButton" class="secondary-button">
+        Vaciar cola
+      </button>
+    </dialog>
+    <dialog id="cinemaDialog" class="cinema-dialog">
+      <div class="dialog-heading">
+        <div>
+          <h2 id="cinemaTitle">Modo cine</h2>
+          <p id="cinemaSubtitle"></p>
+        </div>
+        <button
+          class="icon-button"
+          data-close="cinemaDialog"
+          aria-label="Cerrar modo cine"
+        >
+          <span data-icon="close"></span>
+        </button>
       </div>
-    </section>
-
-    <section class="toolbar" aria-label="Filtros">
-      <label>
-        Buscar anime o tema
-        <input id="searchInput" type="search" placeholder="Ej: Naruto, Evangelion, OP..." autocomplete="off" />
-      </label>
-
-      <label>
-        Ano
-        <input id="yearInput" type="number" min="1960" max="2100" step="1" placeholder="Ej: 2002" inputmode="numeric" />
-      </label>
-
-      <label>
-        Tipo
-        <select id="typeFilter">
-          <option value="all">Todos</option>
-          <option value="OP">Openings</option>
-          <option value="ED">Endings</option>
-          <option value="favorites">Favoritos</option>
-        </select>
-      </label>
-    </section>
-
-    <p id="loading" class="status">Cargando temas desde AnimeThemes...</p>
-    <section id="themesList" class="themes-grid" aria-label="Temas encontrados"></section>
-  </main>
-
-  <script src="config.js"></script>
-  <script src="script.js"></script>
-</body>
+      <div id="cinemaStage"></div>
+      <div class="cinema-actions">
+        <button id="cinemaNext" class="secondary-button">
+          Siguiente tema<span data-icon="next"></span></button
+        ><button id="shareButton" class="text-button">
+          <span data-icon="share"></span>Compartir tema
+        </button>
+      </div>
+    </dialog>
+    <dialog id="infoDialog" class="info-dialog">
+      <div class="dialog-heading">
+        <h2 id="infoTitle"></h2>
+        <button class="icon-button" data-close="infoDialog" aria-label="Cerrar">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <div id="infoContent"></div>
+    </dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <noscript
+      ><p class="noscript-message">
+        Activá JavaScript para escuchar y explorar la radio. También podés
+        visitar <a href="https://animethemes.moe">AnimeThemes</a>.
+      </p></noscript
+    >
+  </body>
 </html>
