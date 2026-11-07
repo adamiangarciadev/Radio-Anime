@@ -2,14 +2,44 @@
 (() => {
   "use strict";
   const config = window.API_CONFIG || {};
-  const API = config.API_BASE_URL || "https://api.animethemes.moe";
+  const API = config.API_BASE_URL || "https://graphql.animethemes.moe/";
   const FAVORITES_KEY = config.FAVORITES_STORAGE_KEY || "anime_radio_favorites";
   const LIBRARY_KEY = "radio_anime_library_v2";
   const HISTORY_KEY = "radio_anime_history_v2";
   const PREFS_KEY = "radio_anime_preferences_v2";
   const FALLBACK = "assets/rooftop.png";
   const PAGE_SIZE = Math.min(50, Math.max(1, Number(config.PAGE_SIZE) || 24));
+  const ANIME_FIELDS = `
+    name: title { romaji english }
+    slug year
+    images(first: 5) { nodes { facet: facetLocalized link } }
+  `;
+  const THEME_FIELDS = `
+    id type slug
+    song { title { romaji native } performances { alias artist { name { main } } } }
+    animethemeentries {
+      nsfw spoiler
+      videos(first: 30) { nodes { link resolution nc } }
+    }
+  `;
+  const CATALOG_QUERY = `
+    query Catalog(
+      $size: Int!, $page: Int!, $search: String, $types: [ThemeType!],
+      $where: QueryAnimethemePaginationWhereWhereConditions, $sort: [AnimeThemeSort!]
+    ) {
+      animethemePagination(
+        first: $size, page: $page, search: $search, type_in: $types,
+        where: $where, sort: $sort
+      ) {
+        paginatorInfo { currentPage hasMorePages total }
+        data { anime { ${ANIME_FIELDS} } ${THEME_FIELDS} }
+      }
+    }
+  `;
   const $ = (id) => document.getElementById(id);
+  const sharedParams = new URLSearchParams(location.search);
+  const sharedSlug = sharedParams.get("anime");
+  let openingSharedTheme = /^[a-zA-Z0-9_-]{1,160}$/.test(sharedSlug || "");
   const esc = (value) =>
     String(value ?? "").replace(
       /[&<>"']/g,
@@ -123,7 +153,9 @@
   const prefs = read(PREFS_KEY, {});
   const state = {
     catalog: [],
-    searchResults: null,
+    results: [],
+    selection: [],
+    useSelection: false,
     current: null,
     view: "discover",
     query: "",
@@ -151,8 +183,8 @@
     loading: false,
     controller: null,
     token: 0,
-    nextPage: null,
-    remoteStarted: false,
+    nextPage: 1,
+    catalogTotal: null,
     retry: null,
     sleepAt: 0,
     playToken: 0,
@@ -230,6 +262,29 @@
       ];
     });
   }
+  function flattenGraphQL(themes, inherited = null) {
+    return flatten(themes.filter((theme) => ["OP", "ED"].includes(theme.type)).map((theme) => {
+      const anime = theme.anime || inherited;
+      return {
+        ...theme,
+        anime: {
+          ...anime,
+          name: anime?.name?.romaji || anime?.name?.english,
+          images: anime?.images?.nodes,
+        },
+        song: {
+          title: theme.song?.title?.romaji || theme.song?.title?.native,
+          artists: theme.song?.performances?.map(({ alias, artist }) => ({
+            name: alias || artist?.name?.main,
+          })),
+        },
+        animethemeentries: theme.animethemeentries.map((entry) => ({
+          ...entry,
+          videos: entry.videos.nodes,
+        })),
+      };
+    }));
+  }
   const unique = (tracks) => [
     ...new Map(tracks.map((track) => [track.id || track.link, track])).values(),
   ];
@@ -247,7 +302,7 @@
     }
     if (migrated) write(LIBRARY_KEY, [...state.saved.values()]);
   }
-  async function fetchJSON(url, signal) {
+  async function fetchJSON(url, signal, body) {
     const controller = new AbortController();
     const onAbort = () => controller.abort();
     if (signal?.aborted) controller.abort();
@@ -255,7 +310,11 @@
     const timer = setTimeout(() => controller.abort(), 18000);
     try {
       const response = await fetch(url, {
-        headers: { Accept: "application/json" },
+        method: body ? "POST" : "GET",
+        headers: body
+          ? { "Content-Type": "application/json", Accept: "application/json" }
+          : { Accept: "application/json" },
+        body,
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -265,19 +324,28 @@
       signal?.removeEventListener("abort", onAbort);
     }
   }
-  function pageURL(page = 1) {
-    const yearQuery = /^\d{4}$/.test(state.year);
-    const url = new URL(`${API}/${yearQuery ? "anime" : "animetheme"}`);
-    url.searchParams.set(
-      "include",
-      yearQuery
-        ? "images,animethemes.song.artists,animethemes.animethemeentries.videos"
-        : "anime.images,song.artists,animethemeentries.videos",
-    );
-    url.searchParams.set("page[size]", String(PAGE_SIZE));
-    url.searchParams.set("page[number]", String(page));
-    if (yearQuery) url.searchParams.set("filter[year]", state.year);
-    return url.href;
+  async function graphql(query, variables, signal) {
+    const response = await fetchJSON(API, signal, JSON.stringify({ query, variables }));
+    if (response.errors?.length || !response.data)
+      throw new Error(response.errors?.[0]?.message || "AnimeThemes: respuesta inválida");
+    return response.data;
+  }
+  function catalogVariables(page) {
+    const variables = { size: PAGE_SIZE, page };
+    // The API's search index rejects database filters and sort arguments.
+    if (state.query) return { ...variables, search: state.query };
+    variables.types = state.type === "all" ? ["OP", "ED"] : [state.type];
+    variables.sort = ["ID_DESC"];
+    if (state.year) {
+      const classic = state.year === "classic";
+      variables.where = {
+        HAS: {
+          relation: "anime",
+          condition: { column: "year", operator: classic ? "LT" : "EQ", value: classic ? 2010 : Number(state.year) },
+        },
+      };
+    }
+    return variables;
   }
   function getTracks() {
     let tracks =
@@ -285,7 +353,7 @@
         ? [...state.saved.values()].filter((t) => state.favorites.has(t.link))
         : state.view === "history"
           ? state.history
-          : (state.searchResults ?? state.catalog);
+          : (state.useSelection ? state.selection : state.results);
     const query = normalize(state.query);
     tracks = tracks.filter(
       (t) =>
@@ -295,7 +363,7 @@
             ? Number(t.year) < 2010 && Number(t.year) > 0
             : String(t.year) === state.year)) &&
         (!query ||
-          (state.view === "discover" && state.searchResults !== null) ||
+          (state.view === "discover" && !state.useSelection) ||
           normalize(`${t.anime} ${t.title} ${t.artist}`).includes(query)),
     );
     if (state.sort === "newest")
@@ -346,13 +414,12 @@
       `<div class="empty-state"><h3>${state.view === "favorites" ? "Los temas que te quedan, quedan acá." : state.view === "history" ? "Tu recorrido empieza con un play." : "Todavía no encontramos ese tema."}</h3><p>${state.view === "favorites" ? "Tocá el corazón de una canción para guardarla en este navegador." : state.view === "history" ? "Acá vas a encontrar los últimos temas que escuchaste." : state.loading ? "Estamos buscando en AnimeThemes…" : "Probá con otro nombre o quitá los filtros para explorar la selección."}</p><button class="secondary-button" data-action="reset">Volver a descubrir</button></div>`;
     $("favoriteCount").textContent = state.favorites.size;
     const shown = Math.min(state.visible, tracks.length);
-    $("resultCount").textContent =
-      `${shown} de ${tracks.length} temas${state.query ? " encontrados" : " en esta selección"}`;
+    const catalogCount = state.view === "discover" && !state.query && state.catalogTotal !== null
+      ? ` · ${state.catalogTotal.toLocaleString("es-AR")} en AnimeThemes`
+      : "";
+    $("resultCount").textContent = `${shown} de ${tracks.length} temas cargados${catalogCount}`;
     const hasLocalMore = tracks.length > state.visible;
-    const canRemote =
-      state.view === "discover" &&
-      !state.query &&
-      (!state.remoteStarted || state.nextPage);
+    const canRemote = state.view === "discover" && state.nextPage !== null;
     $("loadMoreButton").hidden = !hasLocalMore && !canRemote;
     $("loadMoreButton").disabled = state.loading;
     $("loadMoreButton").innerHTML = state.loading
@@ -391,11 +458,11 @@
   }
   function findTrack(link) {
     return [
+      ...state.results,
       ...state.catalog,
       ...state.saved.values(),
       ...state.history,
       ...state.queue,
-      ...(state.searchResults || []),
     ].find((t) => t.link === link);
   }
   function updateFavorite() {
@@ -577,145 +644,81 @@
     state.token++;
     state.loading = false;
   }
-  function resetView(view = "discover") {
-    cancelRequests();
+  function resetView(view = "discover", mix = "") {
     state.view = view;
     state.query = "";
-    state.year = "";
-    state.type = "all";
+    state.year = mix === "classic" ? "classic" : "";
+    state.type = ["OP", "ED"].includes(mix) ? mix : "all";
     state.sort = "selection";
-    state.visible = 12;
-    state.searchResults = null;
-    state.nextPage = null;
-    state.remoteStarted = false;
     $("searchInput").value = "";
-    $("yearInput").value = "";
+    $("yearInput").value = state.year;
     $("sortInput").value = "selection";
+    resetCatalog();
+  }
+  function resetCatalog(delay = 0) {
+    clearTimeout(searchTimer);
+    cancelRequests();
+    state.results = [];
+    state.useSelection = false;
+    state.nextPage = 1;
+    state.catalogTotal = null;
+    state.visible = 12;
     status();
     render();
+    if (state.view !== "discover") return;
+    if (delay) searchTimer = setTimeout(loadCatalogPage, delay);
+    else loadCatalogPage();
   }
-  function localMatches(query) {
-    const q = normalize(query);
-    return state.catalog.filter((t) =>
-      normalize(`${t.anime} ${t.title} ${t.artist}`).includes(q),
-    );
-  }
-  async function searchRemote() {
-    cancelRequests();
-    const query = state.query;
-    if (!query || state.view !== "discover") {
-      state.searchResults = null;
-      status();
+  function loadMore() {
+    clearTimeout(searchTimer);
+    if (getTracks().length > state.visible) {
+      state.visible += PAGE_SIZE;
       render();
-      return;
+    } else {
+      loadCatalogPage();
     }
+  }
+  async function loadCatalogPage() {
+    const page = state.nextPage;
+    if (state.loading || page === null || state.view !== "discover") return;
     const token = state.token;
     const controller = new AbortController();
     state.controller = controller;
     state.loading = true;
-    state.searchResults = localMatches(query);
-    status("Buscando en AnimeThemes…");
+    status(state.query ? "Buscando en AnimeThemes…" : "Explorando el catálogo de AnimeThemes…");
     render();
     try {
-      const data = await fetchJSON(
-        `${API}/search?q=${encodeURIComponent(query)}`,
-        controller.signal,
-      );
-      const animeResults = (data.search?.anime || []).slice(0, 5);
-      const themeResults = (data.search?.animethemes || []).slice(0, 5);
-      const jobs = [
-        ...animeResults.map((a) => ({ kind: "anime", id: a.slug })),
-        ...themeResults.map((t) => ({ kind: "theme", id: t.id })),
-      ];
-      const found = [];
-      let failed = 0;
-      let cursor = 0;
-      await Promise.all(
-        Array.from({ length: Math.min(3, jobs.length) }, async () => {
-          while (cursor < jobs.length && !controller.signal.aborted) {
-            const job = jobs[cursor++];
-            try {
-              const item = await fetchJSON(
-                job.kind === "anime"
-                  ? `${API}/anime/${encodeURIComponent(job.id)}?include=images,animethemes.song.artists,animethemes.animethemeentries.videos`
-                  : `${API}/animetheme/${encodeURIComponent(job.id)}?include=anime.images,song.artists,animethemeentries.videos`,
-                controller.signal,
-              );
-              found.push(
-                ...(job.kind === "anime"
-                  ? flatten(item.anime?.animethemes || [], item.anime)
-                  : flatten(item.animetheme ? [item.animetheme] : [])),
-              );
-            } catch {
-              failed++;
-            }
-          }
-        }),
+      const { animethemePagination: result } = await graphql(
+        CATALOG_QUERY, catalogVariables(page), controller.signal,
       );
       if (token !== state.token) return;
-      mergeCatalog(found);
-      state.searchResults = unique([...localMatches(query), ...found]);
-      status(
-        failed
-          ? "Parte del catálogo no respondió. Mostramos los resultados disponibles."
-          : "",
-        failed ? searchRemote : null,
-      );
+      if (result.paginatorInfo.currentPage !== page) throw new Error("Página inesperada");
+      const tracks = flattenGraphQL(result.data);
+      mergeCatalog(tracks);
+      state.results = unique([...state.results, ...tracks]);
+      state.useSelection = false;
+      state.nextPage = result.paginatorInfo.hasMorePages ? page + 1 : null;
+      state.catalogTotal = result.paginatorInfo.total;
+      if (page > 1) state.visible += PAGE_SIZE;
+      if (!state.current && !openingSharedTheme)
+        selectTrack(getTracks()[0], { autoplay: false });
+      status(!getTracks().length && state.nextPage
+        ? "Esta página no tiene temas reproducibles con esos filtros. Podés explorar la siguiente."
+        : "");
     } catch {
       if (token !== state.token) return;
+      state.useSelection = page === 1;
+      if (!state.current && !openingSharedTheme)
+        selectTrack(getTracks()[0], { autoplay: false });
       status(
-        "No pudimos conectar con AnimeThemes. Mostramos las coincidencias guardadas.",
-        searchRemote,
+        state.useSelection && state.selection.length
+          ? "AnimeThemes no respondió. Mostramos la selección guardada."
+          : "AnimeThemes no respondió. Podés reintentar.",
+        loadCatalogPage,
       );
     } finally {
       if (token === state.token) {
-        state.loading = false;
-        render();
-      }
-    }
-  }
-  async function loadMore() {
-    const tracks = getTracks();
-    if (tracks.length > state.visible) {
-      state.visible += 24;
-      render();
-      return;
-    }
-    if (state.loading || state.query || state.view !== "discover") return;
-    cancelRequests();
-    const token = state.token;
-    state.controller = new AbortController();
-    state.loading = true;
-    status("Explorando el catálogo de AnimeThemes…");
-    render();
-    try {
-      const requestedURL = state.nextPage || pageURL();
-      // Pagination links are only allowed to target the configured API origin.
-      if (new URL(requestedURL).origin !== new URL(API).origin)
-        throw new Error("Invalid pagination");
-      const data = await fetchJSON(requestedURL, state.controller.signal);
-      if (token !== state.token) return;
-      mergeCatalog(
-        data.anime
-          ? data.anime.flatMap((a) => flatten(a.animethemes || [], a))
-          : flatten(data.animethemes || []),
-      );
-      state.nextPage = data.links?.next || null;
-      state.remoteStarted = true;
-      state.visible += 24;
-      status();
-      if (!getTracks().length && state.nextPage)
-        status(
-          "Esta página no tiene temas con esos filtros. Podés explorar la siguiente.",
-        );
-    } catch {
-      if (token === state.token)
-        status(
-          "AnimeThemes no respondió. Tu selección y tus favoritos siguen disponibles.",
-          loadMore,
-        );
-    } finally {
-      if (token === state.token) {
+        state.controller = null;
         state.loading = false;
         render();
       }
@@ -744,7 +747,7 @@
   function showAbout() {
     showInfo(
       "Hecha para escuchar.",
-      '<p>Radio Anime es un proyecto independiente para descubrir openings y endings. Los metadatos, las portadas y los videos provienen de <a href="https://animethemes.moe" target="_blank" rel="noopener noreferrer">AnimeThemes</a>. Los derechos de las obras pertenecen a sus titulares.</p><p>La selección inicial está guardada para que puedas explorar sin esperar. Para reproducir videos y buscar nuevos temas necesitás conexión. La disponibilidad depende de AnimeThemes y del navegador.</p><h3>Tu colección es tuya.</h3><p>Favoritos, volumen e historial se guardan únicamente en este navegador. No necesitás una cuenta. La cola dura esta sesión.</p><p>Arte de portada original generado para Radio Anime. Tipografía Manrope, SIL Open Font License.</p><button class="secondary-button" id="infoHelp">Ver atajos y temporizador</button>',
+      '<p>Radio Anime es un proyecto independiente para descubrir openings y endings. Los metadatos, las portadas y los videos provienen de <a href="https://animethemes.moe" target="_blank" rel="noopener noreferrer">AnimeThemes</a>. Los derechos de las obras pertenecen a sus titulares.</p><p>El catálogo se consulta en vivo a medida que explorás. Si AnimeThemes falla, podés explorar una selección guardada. La disponibilidad depende de AnimeThemes y del navegador.</p><h3>Tu colección es tuya.</h3><p>Favoritos, volumen e historial se guardan únicamente en este navegador. No necesitás una cuenta. La cola dura esta sesión.</p><p>Arte de portada original generado para Radio Anime. Tipografía Manrope, SIL Open Font License.</p><button class="secondary-button" id="infoHelp">Ver atajos y temporizador</button>',
     );
     $("infoHelp").onclick = () => {
       $("infoDialog").close();
@@ -781,25 +784,12 @@
   }
   let searchTimer;
   $("searchInput").addEventListener("input", () => {
-    clearTimeout(searchTimer);
-    cancelRequests();
     state.query = $("searchInput").value.trim();
-    state.visible = 12;
-    state.searchResults = null;
-    status();
-    render();
-    searchTimer = setTimeout(searchRemote, 450);
+    resetCatalog(state.query ? 450 : 0);
   });
   $("yearInput").addEventListener("change", () => {
-    cancelRequests();
     state.year = $("yearInput").value;
-    state.nextPage = null;
-    state.remoteStarted = false;
-    state.visible = 12;
-    status();
-    render();
-    if (state.query && state.view === "discover") searchRemote();
-    else if (state.view === "discover" && !getTracks().length) loadMore();
+    resetCatalog();
   });
   $("sortInput").addEventListener("change", () => {
     state.sort = $("sortInput").value;
@@ -815,17 +805,10 @@
     }
     if (button.dataset.filter) {
       state.type = button.dataset.filter;
-      state.visible = 12;
-      render();
+      resetCatalog();
     }
     if (button.dataset.mix) {
-      resetView();
-      state.type = ["OP", "ED"].includes(button.dataset.mix)
-        ? button.dataset.mix
-        : "all";
-      state.year = button.dataset.mix === "classic" ? "classic" : "";
-      $("yearInput").value = state.year;
-      render();
+      resetView("discover", button.dataset.mix);
       $("library").scrollIntoView({ behavior: "smooth" });
     }
     if (button.dataset.close) $(button.dataset.close).close();
@@ -1070,81 +1053,72 @@
     $("yearInput").append(option);
   }
   async function init() {
-    status("Preparando tu selección…");
+    loadCatalogPage();
     try {
       const data = await fetchJSON("data/selection.json");
-      const groups = (data.anime || []).map((a) =>
-        flatten(a.animethemes || [], a),
-      );
+      const groups = (data.anime || []).map((a) => flatten(a.animethemes || [], a));
       const selection = [];
-      for (
-        let i = 0;
-        i < Math.max(0, ...groups.map((group) => group.length));
-        i++
-      )
+      for (let i = 0; i < Math.max(0, ...groups.map((group) => group.length)); i++)
         for (const group of groups) if (group[i]) selection.push(group[i]);
+      state.selection = selection;
       mergeCatalog(selection);
-      // Preserve old link-only favorites even if their anime isn't in today's selection.
-      for (const link of state.favorites)
-        if (!state.saved.has(link) && safeURL(link, true)) {
-          const title = decodeURIComponent(
-            new URL(link).pathname.split("/").pop(),
-          )
-            .replace(/\.webm$/i, "")
-            .replace(/-/g, " ");
-          state.saved.set(link, {
-            id: `legacy-${link}`,
-            link,
-            title,
-            anime: "Favorito guardado",
-            type: "",
-            year: "",
-            slug: "",
-            cover: FALLBACK,
-          });
-        }
-      write(LIBRARY_KEY, [...state.saved.values()]);
       renderFeatured();
-      status();
-      render();
-      selectTrack(
-        state.catalog.find(
-          (t) => t.slug === "cowboy_bebop" && t.type === "OP",
-        ) || state.catalog[0],
-        { autoplay: false },
-      );
     } catch {
-      mergeCatalog([...state.saved.values(), ...state.history]);
-      render();
-      status(
-        "No pudimos cargar la selección. Reintentá o explorá AnimeThemes.",
-        init,
-      );
+      state.selection = unique([...state.saved.values(), ...state.history]);
+      mergeCatalog(state.selection);
     }
-    const params = new URLSearchParams(location.search);
-    const slug = params.get("anime");
-    if (slug && /^[a-zA-Z0-9_-]{1,160}$/.test(slug)) {
-      try {
-        let track = state.catalog.find(
-          (t) => t.slug === slug && t.id === params.get("theme"),
-        );
-        if (!track) {
-          const data = await fetchJSON(
-            `${API}/anime/${encodeURIComponent(slug)}?include=images,animethemes.song.artists,animethemes.animethemeentries.videos`,
-          );
-          const tracks = flatten(data.anime?.animethemes || [], data.anime);
-          mergeCatalog(tracks);
-          track = tracks.find((t) => t.id === params.get("theme")) || tracks[0];
-        }
-        if (track) {
-          selectTrack(track, { autoplay: false });
-          toast(`Listo para escuchar: ${track.title}`);
-        } else toast("Ese tema ya no está disponible. Explorá la selección.");
-      } catch {
-        toast(
-          "No pudimos abrir el tema compartido. Podés buscarlo por nombre.",
-        );
+
+    // Preserve old link-only favorites even when their anime is outside the loaded pages.
+    for (const link of state.favorites)
+      if (!state.saved.has(link) && safeURL(link, true)) {
+        const title = new URL(link).pathname.split("/").pop()
+          .replace(/\.webm$/i, "")
+          .replace(/-/g, " ");
+        state.saved.set(link, {
+          id: "legacy-" + link, link, title, anime: "Favorito guardado",
+          type: "", year: "", slug: "", cover: FALLBACK,
+        });
       }
+    write(LIBRARY_KEY, [...state.saved.values()]);
+    render();
+    if (!openingSharedTheme) {
+      if (state.useSelection && !state.current)
+        selectTrack(getTracks()[0], { autoplay: false });
+      return;
+    }
+
+    try {
+      const id = sharedParams.get("theme");
+      const numericId = Number(id);
+      let track;
+      if (/^\d+$/.test(id || "") && numericId > 0 && numericId <= 2147483647) {
+        const { animethemePagination: result } = await graphql(
+          'query SharedTheme($id: Int!) { animethemePagination(first: 1, id: $id) { data { anime { ' +
+            ANIME_FIELDS + ' } ' + THEME_FIELDS + ' } } }',
+          { id: numericId },
+        );
+        track = flattenGraphQL(result.data).find((item) => item.slug === sharedSlug);
+      } else {
+        const { anime } = await graphql(
+          'query SharedAnime($slug: String!) { anime(slug: $slug) { ' +
+            ANIME_FIELDS + ' animethemes(first: 100) { ' + THEME_FIELDS + ' } } }',
+          { slug: sharedSlug },
+        );
+        track = flattenGraphQL(anime?.animethemes || [], anime)[0];
+      }
+      if (track && !state.current) {
+        mergeCatalog([track]);
+        selectTrack(track, { autoplay: false });
+        toast("Listo para escuchar: " + track.title);
+      } else if (!track) toast("Ese tema ya no está disponible. Explorá el catálogo.");
+    } catch {
+      const fallback = state.selection.find((item) => item.slug === sharedSlug && item.id === sharedParams.get("theme"));
+      if (fallback && !state.current)
+        selectTrack(fallback, { autoplay: false });
+      else toast("No pudimos abrir el tema compartido. Podés buscarlo por nombre.");
+    } finally {
+      openingSharedTheme = false;
+      if (!state.current) selectTrack(getTracks()[0], { autoplay: false });
     }
   }
   if ("serviceWorker" in navigator)

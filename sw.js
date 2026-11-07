@@ -1,12 +1,12 @@
 /* Cache only the static application. Third-party media is never downloaded here. */
-const VERSION = "radio-anime-v2.0.0";
+const VERSION = "radio-anime-v2.1.0";
 const scope = new URL("./", self.location.href);
 const files = [
   "./",
   "index.html",
-  "style.css?v=2.0.0",
-  "script.js?v=2.0.0",
-  "config.js?v=2.0.0",
+  "style.css?v=2.1.0",
+  "script.js?v=2.1.0",
+  "config.js?v=2.1.0",
   "assets/rooftop.png",
   "assets/favicon.svg",
   "assets/manrope-regular.ttf",

@@ -28,15 +28,13 @@ Abrí http://127.0.0.1:8000. No uses `file://`: la selección y el service worke
 
 El contenido publicable está en la raíz. En GitHub: Settings → Pages → Deploy from a branch → `main` → `/ (root)`. La ruta esperada para este repositorio es https://adamiangarciadev.github.io/Radio-Anime/ . Todas las rutas de recursos son relativas y `.nojekyll` evita el procesamiento de Jekyll.
 
-La publicación de este rediseño queda pendiente de la revisión de la vista previa por parte del propietario. No se hizo push durante la preparación.
-
 Para una nueva versión, actualizá la versión de CSS/JS en `index.html` y los nombres correspondientes en `sw.js`. El service worker usa red primero, conserva una copia local y nunca intercepta videos ni peticiones a AnimeThemes. Una versión nueva del worker toma el control cuando se cierran las pestañas de la versión anterior.
 
 ## Configuración
 
-`config.js` contiene la URL pública de AnimeThemes, la cantidad de resultados por página remota y la clave de favoritos anterior. No necesita claves API, secretos, cuentas ni backend propio.
+`config.js` contiene la URL pública de GraphQL de AnimeThemes, la cantidad de resultados por página y la clave de favoritos anterior. No necesita claves API, secretos, cuentas ni backend propio.
 
-`data/selection.json` contiene una selección real obtenida el 10 de septiembre de 2026. La búsqueda y la paginación consultan el proveedor en vivo; el snapshot inicial se puede renovar sin modificar la interfaz. El reproductor evita variantes duplicadas y omite entradas marcadas NSFW o spoilers.
+Descubrir y buscar consultan `animethemePagination` en vivo. La página pide el primer lote al abrir y sigue la paginación de AnimeThemes al explorar más. El contador separa los temas cargados del total informado por el proveedor. `data/selection.json` se usa para los destacados y como respaldo cuando falla la primera consulta. El reproductor evita variantes duplicadas y omite entradas marcadas NSFW o spoilers.
 
 ## Disponibilidad y datos
 
